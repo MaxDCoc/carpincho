@@ -11,6 +11,7 @@ package resp
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -271,6 +272,12 @@ func (r *Reader) readValueBody(k Kind, depth int) (Value, error) {
 		}
 		if !crlf {
 			return Value{}, protoErr("expected CRLF")
+		}
+		// The spec forbids CR and LF inside these types, and Writer.oneLine would
+		// rewrite a stray CR: accepting it here made "+\r\r\n" parse to a value
+		// that did not survive a write/read round trip (found by FuzzReadValue).
+		if bytes.IndexByte(line, '\r') >= 0 {
+			return Value{}, protoErr("simple string contains CR")
 		}
 		return Value{Kind: k, Str: clone(line)}, nil
 	case Integer:
