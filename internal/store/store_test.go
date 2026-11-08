@@ -43,6 +43,78 @@ func expireIn(s *Store, key string, d time.Duration) {
 	a.Release()
 }
 
+// globalLockMap is the naive design the sharded Store replaces: one RWMutex in
+// front of one map. It exists only so the benchmarks below can compare both.
+type globalLockMap struct {
+	mu sync.RWMutex
+	m  map[string]*Entry
+}
+
+func benchKeys(n int) []string {
+	keys := make([]string, n)
+	for i := range keys {
+		keys[i] = "key:" + strconv.Itoa(i)
+	}
+	return keys
+}
+
+// BenchmarkParallelGetSet runs the same 90% read / 10% write mix from every CPU
+// against the sharded store and against a single global RWMutex.
+func BenchmarkParallelGetSet(b *testing.B) {
+	keys := benchKeys(100_000)
+	val := NewString([]byte("value"))
+
+	b.Run("sharded-256", func(b *testing.B) {
+		s := New(nil)
+		for _, k := range keys {
+			a := s.Acquire(true, k)
+			a.Put(k, val)
+			a.Release()
+		}
+		b.ReportAllocs()
+		b.RunParallel(func(pb *testing.PB) {
+			i := 0
+			for pb.Next() {
+				k := keys[i%len(keys)]
+				if i%10 == 0 {
+					a := s.Acquire(true, k)
+					a.Put(k, val)
+					a.Release()
+				} else {
+					a := s.Acquire(false, k)
+					a.Get(k)
+					a.Release()
+				}
+				i++
+			}
+		})
+	})
+
+	b.Run("single-RWMutex", func(b *testing.B) {
+		g := &globalLockMap{m: make(map[string]*Entry, len(keys))}
+		for _, k := range keys {
+			g.m[k] = val
+		}
+		b.ReportAllocs()
+		b.RunParallel(func(pb *testing.PB) {
+			i := 0
+			for pb.Next() {
+				k := keys[i%len(keys)]
+				if i%10 == 0 {
+					g.mu.Lock()
+					g.m[k] = val
+					g.mu.Unlock()
+				} else {
+					g.mu.RLock()
+					_ = g.m[k]
+					g.mu.RUnlock()
+				}
+				i++
+			}
+		})
+	})
+}
+
 func TestPutGetDelete(t *testing.T) {
 	s, _ := newTestStore()
 	if _, ok := get(s, "k"); ok {

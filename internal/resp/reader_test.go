@@ -19,6 +19,35 @@ func strs(args [][]byte) []string {
 	return out
 }
 
+// BenchmarkReadCommandSET parses a stream of pipelined SET commands (a 13 byte
+// key and a 64 byte value) the way a busy connection would deliver them.
+func BenchmarkReadCommandSET(b *testing.B) {
+	one := AppendCommandStrings(nil, "SET", "key:000000042", strings.Repeat("v", 64))
+	const batch = 1000
+	input := bytes.Repeat(one, batch)
+	b.SetBytes(int64(len(one)))
+	b.ReportAllocs()
+	for i := 0; i < b.N; i += batch {
+		r := NewReader(bytes.NewReader(input))
+		for j := 0; j < batch; j++ {
+			if _, err := r.ReadCommand(); err != nil {
+				b.Fatal(err)
+			}
+		}
+	}
+}
+
+func BenchmarkWriterBulkReply(b *testing.B) {
+	w := NewWriter(io.Discard)
+	val := []byte(strings.Repeat("v", 64))
+	b.SetBytes(int64(len(val)))
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		w.Bulk(val)
+	}
+	_ = w.Flush()
+}
+
 func TestReadCommandOK(t *testing.T) {
 	tests := []struct {
 		name string

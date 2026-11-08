@@ -1,0 +1,71 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: gofmt
+        if: runner.os == 'Linux'
+        run: test -z "$(gofmt -l .)" || (gofmt -d . && exit 1)
+
+      - name: vet
+        run: go vet ./...
+
+      # The race detector is the point of the sharded-lock design, so run it
+      # where it is cheapest and most reliable.
+      - name: test with the race detector
+        if: runner.os == 'Linux'
+        run: go test -race -count=1 ./...
+
+      - name: test
+        if: runner.os != 'Linux'
+        run: go test -count=1 ./...
+
+      - name: build
+        run: go build -trimpath -o bin/carpincho ./cmd/carpincho
+
+  fuzz-smoke:
+    name: fuzz smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: fuzz the RESP parser for 20s per target
+        run: |
+          go test ./internal/resp -run '^$' -fuzz '^FuzzReadCommand$' -fuzztime 20s
+          go test ./internal/resp -run '^$' -fuzz '^FuzzReadValue$' -fuzztime 20s
+          go test ./internal/resp -run '^$' -fuzz '^FuzzSplitInline$' -fuzztime 20s
+
+  docker:
+    name: docker build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t carpincho:ci .
+      - name: the image starts and answers PING
+        run: |
+          docker run -d --name carpincho-ci -p 6380:6380 carpincho:ci
+          sleep 2
+          docker run --rm --network host redis:7-alpine redis-cli -p 6380 PING
