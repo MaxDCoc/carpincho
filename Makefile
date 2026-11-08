@@ -31,8 +31,8 @@ fuzz: ## 30 seconds on each fuzz target of the RESP parser
 bench: ## Go benchmarks (parser, sharding, command layer, TCP)
 	$(GO) test -run '^$$' -bench . -benchmem ./...
 
-bench-docker: ## carpincho vs Redis 7 with redis-benchmark (needs Docker)
-	bash bench/run-docker-bench.sh
+bench-docker: ## carpincho vs Redis 7 with redis-benchmark (needs Docker; MODE=host for the native-process variant)
+	MODE=$(or $(MODE),network) bash bench/run-docker-bench.sh
 
 docker: ## build the image
 	docker build -t carpincho .
