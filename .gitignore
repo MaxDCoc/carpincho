@@ -1,0 +1,17 @@
+# binaries
+/bin/
+/carpincho
+/carpincho.exe
+*.exe
+*.test
+*.out
+# runtime data
+/data/
+*.aof
+*.aof.tmp
+# editor / os
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+# fuzz cache that Go creates when a failure is found is kept on purpose (testdata/fuzz), nothing else
