@@ -1,0 +1,161 @@
+# A real redis-cli talking to carpincho
+#
+# Client:  redis-cli 7.4.11 from the official redis:7-alpine image, run in a container.
+# Server:  carpincho 0.1.0 (Windows 11, native process) listening on 127.0.0.1:6380 with
+#          --dir <dir> --appendfsync always, reached through Docker Desktop's host.docker.internal.
+# Date:    2026-11-08. Output is `redis-cli --no-raw`.
+#
+# Part 1: one session covering strings with TTL, lists, hashes, sets, errors,
+#         `redis-cli --pipe` and pub/sub (the subscriber ran in the background).
+#         This part is the captured output as it came out of the container.
+# Part 2: crash recovery, below. Copied by hand from the terminal output of that check.
+
+# strings and TTL
+carpincho> SET greeting hola carpincho EX 60
+OK
+carpincho> GET greeting
+"hola carpincho"
+carpincho> TTL greeting
+(integer) 60
+carpincho> SET counter 10
+OK
+carpincho> INCRBY counter 5
+(integer) 15
+carpincho> DECR counter
+(integer) 14
+carpincho> SET once x NX
+OK
+carpincho> SET once y NX
+(nil)
+carpincho> APPEND greeting !
+(integer) 15
+carpincho> STRLEN greeting
+(integer) 15
+carpincho> EXPIRE counter 100
+(integer) 1
+carpincho> PTTL counter
+(integer) 99988
+carpincho> PERSIST counter
+(integer) 1
+carpincho> TTL counter
+(integer) -1
+# lists
+carpincho> RPUSH jobs a b c
+(integer) 3
+carpincho> LPUSH jobs z
+(integer) 4
+carpincho> LRANGE jobs 0 -1
+1) "z"
+2) "a"
+3) "b"
+4) "c"
+carpincho> LLEN jobs
+(integer) 4
+carpincho> LPOP jobs
+"z"
+carpincho> RPOP jobs 2
+1) "c"
+2) "b"
+# hashes
+carpincho> HSET user:1 name Max lang Go
+(integer) 2
+carpincho> HGET user:1 name
+"Max"
+carpincho> HGETALL user:1
+1) "name"
+2) "Max"
+3) "lang"
+4) "Go"
+carpincho> HLEN user:1
+(integer) 2
+carpincho> HDEL user:1 lang
+(integer) 1
+# sets
+carpincho> SADD tags go redis tcp go
+(integer) 3
+carpincho> SISMEMBER tags go
+(integer) 1
+carpincho> SCARD tags
+(integer) 3
+carpincho> SMEMBERS tags
+1) "go"
+2) "redis"
+3) "tcp"
+carpincho> SREM tags tcp
+(integer) 1
+# keyspace and errors
+carpincho> TYPE jobs
+list
+carpincho> TYPE user:1
+hash
+carpincho> TYPE tags
+set
+carpincho> KEYS user:*
+1) "user:1"
+carpincho> DBSIZE
+(integer) 6
+carpincho> GET jobs
+(error) WRONGTYPE Operation against a key holding the wrong kind of value
+carpincho> INCR greeting
+(error) ERR value is not an integer or out of range
+carpincho> NOSUCH x
+(error) ERR unknown command 'NOSUCH', with args beginning with: 'x' 
+carpincho> GET
+(error) ERR wrong number of arguments for 'get' command
+# redis-cli --pipe: 1000 SETs in one burst
+All data transferred. Waiting for the last reply...
+Last reply received from server.
+errors: 0, replies: 1000
+carpincho> DBSIZE
+(integer) 1006
+# pub/sub: one subscriber in the background, two publishes
+carpincho> PUBLISH news hello subscribers
+(integer) 1
+carpincho> PUBLISH news second message
+(integer) 1
+carpincho> PUBLISH nobody-listens x
+(integer) 0
+--- what the subscriber printed:
+1) "subscribe"
+2) "news"
+3) (integer) 1
+1) "message"
+2) "news"
+3) "hello subscribers"
+1) "message"
+2) "news"
+3) "second message"
+# INFO
+# Keyspace
+db0:keys=1006,expires=1,avg_ttl=0
+
+
+# ---------------------------------------------------------------------------
+# Part 2: crash recovery. One more write (SET persist-ttl survivor EX 600), then the server
+# process was killed hard with no shutdown (Stop-Process -Force). The AOF on disk had
+# 36510 bytes. Restarted on the same --dir it logged
+#   aof: replayed 1017 commands in 21ms (1007 keys)
+# and the real client read everything back (about 13 s after the write above):
+# ---------------------------------------------------------------------------
+carpincho> DBSIZE
+(integer) 1007
+carpincho> GET counter
+"14"
+carpincho> TTL counter
+(integer) -1
+carpincho> LRANGE jobs 0 -1
+1) "a"
+carpincho> HGETALL user:1
+1) "name"
+2) "Max"
+carpincho> SMEMBERS tags
+1) "go"
+2) "redis"
+carpincho> GET pipe:1000
+"1000"
+carpincho> TTL persist-ttl
+(integer) 585
+carpincho> GET persist-ttl
+"survivor"
+carpincho> GET greeting
+"hola carpincho!"

@@ -27,7 +27,10 @@
 # keyspace is flushed before each one. Output: Markdown tables on stdout and the raw
 # numbers in bench/results/<timestamp>-<mode>.tsv.
 #
-# Tunables (environment variables): REQUESTS CLIENTS KEYSPACE RUNS PIPELINES TESTS CPUS
+# Tunables (environment variables): REQUESTS CLIENTS KEYSPACE RUNS PIPELINES TESTS CPUS THREADS
+# THREADS sets redis-benchmark --threads. It is single-threaded by default, which caps
+# what it can generate (a few hundred thousand requests/s) and can hide the difference
+# between two fast servers; raise it to check whether the generator is the bottleneck.
 set -euo pipefail
 export MSYS_NO_PATHCONV=1 # Git Bash on Windows: do not rewrite the "/path" arguments given to docker
 
@@ -39,6 +42,7 @@ RUNS="${RUNS:-2}"              # repetitions of every measurement
 PIPELINES="${PIPELINES:-1 16}" # commands per round trip (-P); one table per value
 TESTS="${TESTS:-ping_mbulk,set,get,incr,lpush,rpush,lpop,rpop,sadd,hset,lrange_100,mset}"
 CPUS="${CPUS:-2}"              # MODE=network: CPU limit of each server container
+THREADS="${THREADS:-}"         # redis-benchmark --threads; empty keeps its default (one thread)
 IMAGE="${IMAGE:-redis:7-alpine}"
 CARP_ADDR="${CARP_ADDR:-host.docker.internal:6380}" # MODE=host: where the native carpincho listens
 REDIS_PORT="${REDIS_PORT:-6381}"                    # MODE=host: host port published for Redis
@@ -49,7 +53,7 @@ NET=carpincho-bench-net
 
 cd "$(dirname "$0")/.."
 mkdir -p bench/results
-TSV="bench/results/$(date +%Y%m%d-%H%M%S)-$MODE.tsv"
+TSV="bench/results/$(date +%Y%m%d-%H%M%S)-$MODE${THREADS:+-threads$THREADS}.tsv"
 
 cleanup() {
   docker rm -f "$REDIS_NAME" "$CARP_NAME" >/dev/null 2>&1 || true
@@ -100,7 +104,7 @@ wait_ready() { # host port
 }
 
 run_bench() { # host port pipeline -> CSV on stdout
-  cli redis-benchmark -h "$1" -p "$2" -n "$REQUESTS" -c "$CLIENTS" -P "$3" -r "$KEYSPACE" -t "$TESTS" --csv
+  cli redis-benchmark -h "$1" -p "$2" -n "$REQUESTS" -c "$CLIENTS" -P "$3" -r "$KEYSPACE" -t "$TESTS" ${THREADS:+--threads "$THREADS"} --csv
 }
 
 wait_ready "$CARP_HOST" "$CARP_PORT"
@@ -108,7 +112,7 @@ wait_ready "$REDIS_HOST" "$REDIS_PRT"
 
 {
   echo "# date: $(date '+%Y-%m-%d %H:%M:%S %z')   mode: $MODE"
-  echo "# requests/test=$REQUESTS clients=$CLIENTS keyspace=$KEYSPACE runs=$RUNS pipelines=($PIPELINES) cpus/server=$CPUS(network mode only)"
+  echo "# requests/test=$REQUESTS clients=$CLIENTS keyspace=$KEYSPACE runs=$RUNS pipelines=($PIPELINES) generator threads=${THREADS:-1} cpus/server=$CPUS(network mode only)"
   echo "# tests: $TESTS"
   echo "# $(docker info --format 'docker {{.ServerVersion}} | VM: {{.NCPU}} CPUs, {{.MemTotal}} bytes | {{.OperatingSystem}}')"
   echo "# $(docker exec "$REDIS_NAME" redis-server --version | cut -c1-40) | $(cli redis-benchmark --version)"

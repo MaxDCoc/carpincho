@@ -72,7 +72,7 @@ Other targets: `make test`, `make race`, `make fuzz`, `make bench`, `make bench-
 | Sets | `SADD`, `SREM`, `SMEMBERS`, `SISMEMBER`, `SCARD` |
 | Pub/Sub | `SUBSCRIBE`, `UNSUBSCRIBE`, `PUBLISH` |
 
-Not implemented yet (and written up as ready-to-paste issues in [`docs/issues/`](docs/issues)): sorted sets, RDB snapshots, `maxmemory` eviction, `MULTI/EXEC/WATCH`, replication, RESP3, keyspace notifications, Prometheus metrics. Also missing: `PSUBSCRIBE`, the `NX/XX/GT/LT` options of `EXPIRE`, the `GET` option of `SET`, authentication, TLS and multiple databases.
+Not implemented yet (and written up as ready-to-paste issues in [`docs/issues/`](docs/issues)): sorted sets, RDB snapshots, `maxmemory` eviction, `MULTI/EXEC/WATCH`, replication, RESP3, keyspace notifications, Prometheus metrics. Also missing: `SCAN` (so `redis-cli --scan` and `--bigkeys` do not work), `PSUBSCRIBE`, the `NX/XX/GT/LT` options of `EXPIRE`, the `GET` option of `SET`, authentication, TLS and multiple databases.
 
 ## Architecture
 
@@ -141,6 +141,7 @@ make fuzz                     # 30 s of native fuzzing on each RESP target
 - **Commands**: a harness runs commands in-process and renders replies like `redis-cli`, so a test reads like a session; WRONGTYPE matrix, option parsing, error texts.
 - **Integration**: `go-redis` v9 against a real loopback server: all data types, 2000-command pipelines, a 1 MiB value, 50 concurrent clients, pub/sub fan-out, `HELLO 3` fallback, raw wire-format checks, graceful shutdown, restart.
 - **Persistence**: restart with each fsync policy, relative-to-absolute expiry, replay without early expiry, torn last record, rewrite compaction, and a test that runs `BGREWRITEAOF` in a loop while 8 goroutines increment counters and then checks every counter is exact after a restart.
+- **Real Redis tools**: `redis-cli` 7.4.11 and `redis-benchmark` from the official `redis:7-alpine` image against the running server. The transcript in [`docs/redis-cli-session.txt`](docs/redis-cli-session.txt) covers strings with TTL, lists, hashes, sets, errors, `redis-cli --pipe` (1000 commands in one burst) and pub/sub, and then kills the server process hard and reads everything back after a restart (1007 keys, TTL included).
 
 ## Benchmarks
 
