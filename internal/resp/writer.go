@@ -93,6 +93,10 @@ func (w *Writer) BulkArray(items [][]byte) {
 	}
 }
 
+// Raw appends bytes that are already RESP-encoded. Pub/sub encodes a message
+// once and hands the same frame to every subscriber.
+func (w *Writer) Raw(b []byte) { _, _ = w.bw.Write(b) }
+
 // Value writes any decoded Value (used to echo what ReadValue parsed).
 func (w *Writer) Value(v Value) {
 	switch v.Kind {
