@@ -31,6 +31,10 @@
 # THREADS sets redis-benchmark --threads. It is single-threaded by default, which caps
 # what it can generate (a few hundred thousand requests/s) and can hide the difference
 # between two fast servers; raise it to check whether the generator is the bottleneck.
+#
+# Keep every measurement long: with a pipeline depth of 16, 100 000 requests take well
+# under a second, connection set-up is a visible part of that, and in --threads mode
+# redis-benchmark times a run in steps of 250 ms. Use REQUESTS=1000000 or more there.
 set -euo pipefail
 export MSYS_NO_PATHCONV=1 # Git Bash on Windows: do not rewrite the "/path" arguments given to docker
 
@@ -53,7 +57,7 @@ NET=carpincho-bench-net
 
 cd "$(dirname "$0")/.."
 mkdir -p bench/results
-TSV="bench/results/$(date +%Y%m%d-%H%M%S)-$MODE${THREADS:+-threads$THREADS}.tsv"
+TSV="bench/results/$(date +%Y%m%d-%H%M%S)-$MODE${THREADS:+-threads$THREADS}${TAG:+-$TAG}.tsv" # TAG: optional file name suffix
 
 cleanup() {
   docker rm -f "$REDIS_NAME" "$CARP_NAME" >/dev/null 2>&1 || true
