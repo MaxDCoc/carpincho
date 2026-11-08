@@ -1,0 +1,30 @@
+# date: 2026-11-08 03:46:34 -0300   mode: network
+# requests/test=2000000 clients=50 keyspace=100000 runs=2 pipelines=(16) generator threads=4 cpus/server=2(network mode only)
+# tests: ping_mbulk,set,get,incr,lpush,mset
+# docker 28.5.1 | VM: 16 CPUs, 7925329920 bytes | Docker Desktop
+# Redis server v=7.4.11 sha=00000000:0 mal | redis-benchmark 7.4.11
+# carpincho: 95d4b43
+carpincho	16	1	PING_MBULK	499625	1.223
+carpincho	16	1	SET	307267	2.071
+carpincho	16	1	GET	347102	1.871
+carpincho	16	1	INCR	307361	2.095
+carpincho	16	1	LPUSH	399361	1.127
+carpincho	16	1	MSET (10 keys)	96214	6.927
+redis	16	1	PING_MBULK	242131	3.095
+redis	16	1	SET	194875	3.879
+redis	16	1	GET	204750	3.639
+redis	16	1	INCR	210217	3.567
+redis	16	1	LPUSH	147743	5.055
+redis	16	1	MSET (10 keys)	87735	8.303
+carpincho	16	2	PING_MBULK	469373	1.263
+carpincho	16	2	SET	307361	2.111
+carpincho	16	2	GET	347162	1.863
+carpincho	16	2	INCR	319795	2.071
+carpincho	16	2	LPUSH	332945	1.879
+carpincho	16	2	MSET (10 keys)	97395	6.919
+redis	16	2	PING_MBULK	234935	3.175
+redis	16	2	SET	194799	3.767
+redis	16	2	GET	142440	4.063
+redis	16	2	INCR	194609	3.703
+redis	16	2	LPUSH	153574	4.655
+redis	16	2	MSET (10 keys)	84937	8.527

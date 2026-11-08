@@ -1,0 +1,110 @@
+# date: 2026-11-08 03:19:46 -0300   mode: host
+# requests/test=100000 clients=50 keyspace=100000 runs=2 pipelines=(1 16) cpus/server=2(network mode only)
+# tests: ping_mbulk,set,get,incr,lpush,rpush,lpop,rpop,sadd,hset,lrange_100,mset
+# docker 28.5.1 | VM: 16 CPUs, 7925329920 bytes | Docker Desktop
+# Redis server v=7.4.11 sha=00000000:0 mal | redis-benchmark 7.4.11
+# carpincho: 968ed71
+carpincho	1	1	PING_MBULK	8569	3.935
+carpincho	1	1	SET	8420	4.047
+carpincho	1	1	GET	9390	3.551
+carpincho	1	1	INCR	9285	3.519
+carpincho	1	1	LPUSH	9319	3.591
+carpincho	1	1	RPUSH	10722	3.039
+carpincho	1	1	LPOP	11183	2.943
+carpincho	1	1	RPOP	10001	3.255
+carpincho	1	1	SADD	8403	3.991
+carpincho	1	1	HSET	9275	3.447
+carpincho	1	1	LPUSH (needed to benchmark LRANGE)	11104	2.951
+carpincho	1	1	LRANGE_100 (first 100 elements)	4856	5.327
+carpincho	1	1	MSET (10 keys)	6557	5.511
+redis	1	1	PING_MBULK	5308	7.767
+redis	1	1	SET	5978	6.799
+redis	1	1	GET	7695	5.199
+redis	1	1	INCR	8763	4.839
+redis	1	1	LPUSH	8629	4.903
+redis	1	1	RPUSH	8155	5.191
+redis	1	1	LPOP	8871	4.751
+redis	1	1	RPOP	8731	4.839
+redis	1	1	SADD	8718	4.831
+redis	1	1	HSET	8714	4.871
+redis	1	1	LPUSH (needed to benchmark LRANGE)	8668	4.887
+redis	1	1	LRANGE_100 (first 100 elements)	5112	5.807
+redis	1	1	MSET (10 keys)	8645	4.927
+carpincho	1	2	PING_MBULK	10928	2.927
+carpincho	1	2	SET	10110	3.167
+carpincho	1	2	GET	7510	4.391
+carpincho	1	2	INCR	10152	3.159
+carpincho	1	2	LPUSH	11473	2.807
+carpincho	1	2	RPUSH	11379	2.863
+carpincho	1	2	LPOP	11362	2.847
+carpincho	1	2	RPOP	11060	2.879
+carpincho	1	2	SADD	11284	2.879
+carpincho	1	2	HSET	11324	2.839
+carpincho	1	2	LPUSH (needed to benchmark LRANGE)	11301	2.903
+carpincho	1	2	LRANGE_100 (first 100 elements)	5234	5.087
+carpincho	1	2	MSET (10 keys)	11058	2.895
+redis	1	2	PING_MBULK	8435	4.999
+redis	1	2	SET	8532	4.951
+redis	1	2	GET	8564	4.935
+redis	1	2	INCR	8542	4.943
+redis	1	2	LPUSH	7952	5.327
+redis	1	2	RPUSH	8747	4.863
+redis	1	2	LPOP	8345	5.103
+redis	1	2	RPOP	8477	5.023
+redis	1	2	SADD	8660	4.871
+redis	1	2	HSET	8268	5.119
+redis	1	2	LPUSH (needed to benchmark LRANGE)	8706	4.895
+redis	1	2	LRANGE_100 (first 100 elements)	5199	5.759
+redis	1	2	MSET (10 keys)	8548	5.023
+carpincho	16	1	PING_MBULK	158730	3.199
+carpincho	16	1	SET	141044	3.439
+carpincho	16	1	GET	148368	3.407
+carpincho	16	1	INCR	155280	3.287
+carpincho	16	1	LPUSH	168067	2.991
+carpincho	16	1	RPUSH	171527	2.895
+carpincho	16	1	LPOP	157729	3.087
+carpincho	16	1	RPOP	161290	3.031
+carpincho	16	1	SADD	134409	3.551
+carpincho	16	1	HSET	148368	3.255
+carpincho	16	1	LPUSH (needed to benchmark LRANGE)	149254	3.399
+carpincho	16	1	LRANGE_100 (first 100 elements)	15843	25.279
+carpincho	16	1	MSET (10 keys)	89445	5.887
+redis	16	1	PING_MBULK	108932	6.167
+redis	16	1	SET	100705	6.719
+redis	16	1	GET	103520	6.399
+redis	16	1	INCR	121803	5.631
+redis	16	1	LPUSH	109529	6.535
+redis	16	1	RPUSH	132626	5.191
+redis	16	1	LPOP	126582	5.423
+redis	16	1	RPOP	127226	5.351
+redis	16	1	SADD	116550	5.823
+redis	16	1	HSET	103842	6.423
+redis	16	1	LPUSH (needed to benchmark LRANGE)	111607	6.407
+redis	16	1	LRANGE_100 (first 100 elements)	14478	28.431
+redis	16	1	MSET (10 keys)	47348	15.519
+carpincho	16	2	PING_MBULK	162866	3.071
+carpincho	16	2	SET	159744	3.183
+carpincho	16	2	GET	147493	3.199
+carpincho	16	2	INCR	173310	2.951
+carpincho	16	2	LPUSH	169779	2.959
+carpincho	16	2	RPUSH	162602	2.983
+carpincho	16	2	LPOP	168350	2.943
+carpincho	16	2	RPOP	176367	2.879
+carpincho	16	2	SADD	162866	3.031
+carpincho	16	2	HSET	147929	3.383
+carpincho	16	2	LPUSH (needed to benchmark LRANGE)	176678	2.815
+carpincho	16	2	LRANGE_100 (first 100 elements)	14892	26.943
+carpincho	16	2	MSET (10 keys)	102041	5.695
+redis	16	2	PING_MBULK	126263	5.103
+redis	16	2	SET	109529	6.215
+redis	16	2	GET	116686	5.791
+redis	16	2	INCR	133333	5.183
+redis	16	2	LPUSH	113250	6.335
+redis	16	2	RPUSH	138504	4.935
+redis	16	2	LPOP	131579	5.191
+redis	16	2	RPOP	115875	5.791
+redis	16	2	SADD	112360	6.063
+redis	16	2	HSET	108578	6.271
+redis	16	2	LPUSH (needed to benchmark LRANGE)	107066	6.639
+redis	16	2	LRANGE_100 (first 100 elements)	14002	29.327
+redis	16	2	MSET (10 keys)	54437	13.663

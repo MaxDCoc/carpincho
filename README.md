@@ -27,6 +27,7 @@ list
 - **Append-only file** with `always` / `everysec` / `no` fsync, **group commit**, replay that **tolerates a truncated tail**, absolute expiry timestamps, and `BGREWRITEAOF` compaction ([ADR 0002](docs/adr/0002-aof-rewrite.md)).
 - **Redis-identical replies and errors** (`WRONGTYPE`, `ERR value is not an integer or out of range`, unknown-command text, ...), checked by table-driven tests and by `go-redis`.
 - Slow pub/sub subscribers are disconnected instead of stalling publishers.
+- Checked against the real tools: `redis-cli` 7.4.11 and `redis-benchmark` against Redis 7.4.11 (see [Benchmarks](#comparison-with-redis-7-redis-benchmark)). In a like-for-like container setup carpincho handled 88 to 97% of Redis' requests per second without pipelining; with pipelining there is no honest ranking, the result flips with the load generator's setup.
 
 ## Quick start
 
@@ -145,6 +146,8 @@ make fuzz                     # 30 s of native fuzzing on each RESP target
 
 ## Benchmarks
 
+### Go micro-benchmarks
+
 Measured with `go test -bench` on the author's machine: Windows 11, AMD Ryzen 7 7735H (8 cores / 16 threads), 16 GB RAM, Go 1.26.2, loopback. The machine was running other applications and the load generator shares the CPU with the server, so read these as orders of magnitude, not as a leaderboard.
 
 | Benchmark | Result |
@@ -157,7 +160,90 @@ Measured with `go test -bench` on the author's machine: Windows 11, AMD Ryzen 7 
 | RESP parse of a pipelined `SET` (13 B key, 64 B value) | 1.03 µs, 100 MB/s, 7 allocs |
 | RESP bulk reply encode | 96 ns, 0 allocs |
 
-**Comparison with Redis 7: deliberately not run, so there are no numbers.** When this was written the development machine had Docker stopped and almost no free disk space, and pulling images was not an option, so the `redis-benchmark` comparison was skipped; nothing here is estimated or extrapolated. [`bench/run-docker-bench.sh`](bench/run-docker-bench.sh) runs both servers in containers on one network with the same CPU limit and drives them with `redis-benchmark` from the `redis:7-alpine` image (`make bench-docker`; set `TARGET=host.docker.internal:6380` to also test a natively running carpincho). Paste its output here when you run it. Expect Redis to be faster per core; the point of this project is correctness and clarity, not beating a decade of C tuning.
+### Comparison with Redis 7 (`redis-benchmark`)
+
+`redis-benchmark` 7.4.11 (from the official `redis:7-alpine` image) drove carpincho and Redis 7.4.11 with identical flags. Everything is scripted in [`bench/run-docker-bench.sh`](bench/run-docker-bench.sh) (`make bench-docker`), the raw per-run numbers are committed in [`bench/results/`](bench/results), and `awk -f bench/summarize.awk <file>` condenses them into tables like the ones below.
+
+**Machine.** The same laptop as above: Windows 11 Pro (10.0.26200), AMD Ryzen 7 7735H (8 cores / 16 threads), 15.2 GB RAM, Docker Desktop 28.5.1 on WSL2 (its VM sees 16 CPUs and 7.4 GiB), Go 1.26.2. It was **not idle**: about 25% CPU of background load (a desktop assistant, Discord, a game launcher) and only 1.2 GB of free RAM while the benchmarks ran.
+
+**Method.** 50 connections, random keys out of 100 000, every measurement taken twice and interleaved (carpincho, Redis, carpincho, Redis), keyspace flushed and a warm-up pass before each. Neither server persists anything (`--save "" --appendonly no` for Redis, no `--dir` for carpincho). Tables show the mean of the two runs, in requests per second.
+
+#### Like for like: same kernel, same network, same CPU limit (`MODE=network`)
+
+carpincho (the static linux/amd64 binary, run inside a `redis:7-alpine` container that is only used as a root filesystem; the Redis server is not started there) and Redis each run in a container limited to 2 CPUs on one Docker network, and `redis-benchmark` reaches both directly. **This is the comparison to use.**
+
+Without pipelining (`-P 1`, 100 000 requests per test, runs of 5 to 15 s; the two runs of a measurement differed by 3% on average and 12% at most):
+
+| test | carpincho | Redis | ratio | p50 carpincho | p50 Redis |
+|---|--:|--:|--:|--:|--:|
+| PING_MBULK | 18066 | 20096 | 0.90x | 1.37 ms | 1.22 ms |
+| SET | 18609 | 20925 | 0.89x | 1.32 ms | 1.21 ms |
+| GET | 19307 | 20660 | 0.93x | 1.28 ms | 1.22 ms |
+| INCR | 19368 | 20044 | 0.97x | 1.28 ms | 1.23 ms |
+| LPUSH | 19144 | 21642 | 0.88x | 1.31 ms | 1.21 ms |
+| RPUSH | 19512 | 20623 | 0.95x | 1.27 ms | 1.20 ms |
+| LPOP | 19098 | 21193 | 0.90x | 1.31 ms | 1.19 ms |
+| RPOP | 19462 | 21308 | 0.91x | 1.27 ms | 1.19 ms |
+| SADD | 19140 | 21315 | 0.90x | 1.31 ms | 1.20 ms |
+| HSET | 19348 | 20985 | 0.92x | 1.29 ms | 1.20 ms |
+| LRANGE_100 | 6946 | 6446 | 1.08x | 3.51 ms | 3.74 ms |
+| MSET (10 keys) | 19291 | 21749 | 0.89x | 1.31 ms | 1.26 ms |
+
+With 16 commands per round trip (`-P 16`; 1 000 000 requests per test with one generator thread, 2 000 000 with four; the two runs of a measurement differed by 9% and 7% on average and by 55% at most, carpincho `HSET`: 299 581 and 170 678):
+
+| test | 1 thread: carpincho | Redis | ratio | 4 threads: carpincho | Redis | ratio |
+|---|--:|--:|--:|--:|--:|--:|
+| PING_MBULK | 266152 | 306660 | 0.87x | 484499 | 238533 | 2.03x |
+| SET | 280186 | 295908 | 0.95x | 307314 | 194837 | 1.58x |
+| GET | 273117 | 317260 | 0.86x | 347132 | 173595 | 2.00x |
+| INCR | 299861 | 310085 | 0.97x | 313578 | 202413 | 1.55x |
+| LPUSH | 270869 | 189609 | 1.43x | 366153 | 150658 | 2.43x |
+| RPUSH | 276529 | 313471 | 0.88x | - | - | - |
+| LPOP | 290622 | 309834 | 0.94x | - | - | - |
+| RPOP | 287385 | 308605 | 0.93x | - | - | - |
+| SADD | 261344 | 297269 | 0.88x | - | - | - |
+| HSET | 235129 | 266575 | 0.88x | - | - | - |
+| MSET (10 keys) | 90059 | 93091 | 0.97x | 96804 | 86336 | 1.12x |
+
+What the numbers support:
+
+- **No pipelining: carpincho is slightly behind.** It handles 88 to 97% of Redis' requests per second in 11 of 12 tests, and its median latency is 0.04 to 0.15 ms higher (1.27 to 1.37 ms against 1.19 to 1.26 ms). The gap is about the same for every command, which looks like a fixed per-request cost rather than slower commands. My guess is the goroutine wake-up in Go's network poller against Redis' epoll loop, but I did not measure that. `LRANGE_100` is the exception (1.08x): both are limited by building and sending 100 replies.
+- **Depth 16, one generator thread: carpincho is 3 to 14% behind in 10 of 11 tests.** Both servers sit around 235 to 320 K req/s on single-key commands (`MSET` carries 10 keys, hence ~90 K), which is close to what one `redis-benchmark` thread can generate. `LPUSH` is the outlier (1.43x) because Redis' own `LPUSH` ran well below its other write commands (190 K against about 300 K), which I cannot explain.
+- **Depth 16, four generator threads: the order flips**, with carpincho ahead by 1.1 to 2.4x. That fits the design (a 2-CPU quota lets carpincho run commands from several connections in parallel, while Redis executes commands on one thread), but it is not proof: Redis' own throughput also fell to 150 to 240 K req/s, below what it reached with one generator thread, and I have not found out why.
+- So **there is no honest ranking at depth 16**: the winner depends on how the load is generated. What the data does show is that carpincho is in the same range as Redis 7.4 for simple commands on this laptop, a few percent behind per request without pipelining.
+
+#### Through Docker Desktop's networking, carpincho as a native Windows process (`MODE=host`)
+
+The obvious setup: carpincho runs natively on Windows, Redis in a container with its port published on `127.0.0.1:6381`, and `redis-benchmark` in a third container reaching both through `host.docker.internal`, so **both go through Docker Desktop's network layer**. It is biased and must not be used to rank the servers: the two sit on different operating systems and the paths differ (Redis' published port takes extra hops). That is why Redis' median latency was 4.9 to 6.4 ms against 2.9 to 4.2 ms for carpincho, and why at `-P 1` both were capped at roughly 5 to 11 K req/s by the proxy. These were also the noisiest runs (the two runs of a measurement differed by 13% on average and 51% at most). Kept as a record, `-P 1` only:
+
+<details><summary>Table</summary>
+
+| test | carpincho | Redis | ratio | p50 carpincho | p50 Redis |
+|---|--:|--:|--:|--:|--:|
+| PING_MBULK | 9748 | 6871 | 1.42x | 3.43 ms | 6.38 ms |
+| SET | 9265 | 7255 | 1.28x | 3.61 ms | 5.88 ms |
+| GET | 8450 | 8129 | 1.04x | 3.97 ms | 5.07 ms |
+| INCR | 9718 | 8652 | 1.12x | 3.34 ms | 4.89 ms |
+| LPUSH | 10396 | 8290 | 1.25x | 3.20 ms | 5.12 ms |
+| RPUSH | 11050 | 8451 | 1.31x | 2.95 ms | 5.03 ms |
+| LPOP | 11272 | 8608 | 1.31x | 2.90 ms | 4.93 ms |
+| RPOP | 10530 | 8604 | 1.22x | 3.07 ms | 4.93 ms |
+| SADD | 9843 | 8689 | 1.13x | 3.44 ms | 4.85 ms |
+| HSET | 10299 | 8491 | 1.21x | 3.14 ms | 5.00 ms |
+| LRANGE_100 | 5045 | 5155 | 0.98x | 5.21 ms | 5.78 ms |
+| MSET (10 keys) | 8807 | 8596 | 1.02x | 4.20 ms | 4.98 ms |
+
+</details>
+
+The `-P 16` rows of that file and of the first `-network.tsv` come from 100 000-request runs that lasted 0.3 to 0.7 s: too short to mean anything, and in `--threads` mode `redis-benchmark` times a run in 250 ms steps. They stay in the raw files but are not used here; the depth-16 numbers above come from the two `*-long-p16.tsv` files.
+
+#### Caveats
+
+- Two runs per measurement on a shared laptop that was running other programs. Treat differences smaller than the run-to-run spread as noise unless they repeat consistently, as the `-P 1` gap does (11 of 12 tests on the same side).
+- At `-P 1` both servers sit near 20 K req/s, which is the cost of Docker's virtual network plus a single generator thread, not what either server can do. The 3 to 12% gap is small next to that shared cost.
+- carpincho had a quota of 2 CPUs and Redis runs commands on one thread; another `CPUS=` changes the picture at depth 16.
+- Not measured: persistence on (AOF `everysec` / `always` against Redis `appendonly yes`), values larger than a few bytes, more than 50 connections, `LRANGE` with pipelining.
+- Run `make bench-docker` again on an idle machine before quoting any of this.
 
 ## Known limitations
 
@@ -167,6 +253,7 @@ Measured with `go test -bench` on the author's machine: Windows 11, AMD Ryzen 7 
 - `BGREWRITEAOF` pauses writers while it dumps (see ADR 0002).
 - `KEYS` and `DBSIZE` are not atomic snapshots under concurrent writes.
 - The race detector was not run on the author's Windows machine (it needs a C toolchain); the CI workflow runs it on Linux.
+- The `Dockerfile` has not been built yet (it needs `golang:1.26-alpine`, which was not pulled); the benchmarks use the same static binary cross-compiled with `CGO_ENABLED=0`.
 
 ## Roadmap
 
