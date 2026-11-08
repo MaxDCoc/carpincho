@@ -156,7 +156,7 @@ Measured with `go test -bench` on the author's machine: Windows 11, AMD Ryzen 7 
 | RESP parse of a pipelined `SET` (13 B key, 64 B value) | 1.03 µs, 100 MB/s, 7 allocs |
 | RESP bulk reply encode | 96 ns, 0 allocs |
 
-**Comparison with Redis 7: not measured yet.** The development machine had Docker stopped and almost no free disk space when this was written, so there are no numbers and none are made up. [`bench/run-docker-bench.sh`](bench/run-docker-bench.sh) runs both servers in containers on one network with the same CPU limit and drives them with `redis-benchmark` from the `redis:7-alpine` image (`make bench-docker`; set `TARGET=host.docker.internal:6380` to also test a natively running carpincho). Paste its output here when you run it. Expect Redis to be faster per core; the point of this project is correctness and clarity, not beating a decade of C tuning.
+**Comparison with Redis 7: deliberately not run, so there are no numbers.** When this was written the development machine had Docker stopped and almost no free disk space, and pulling images was not an option, so the `redis-benchmark` comparison was skipped; nothing here is estimated or extrapolated. [`bench/run-docker-bench.sh`](bench/run-docker-bench.sh) runs both servers in containers on one network with the same CPU limit and drives them with `redis-benchmark` from the `redis:7-alpine` image (`make bench-docker`; set `TARGET=host.docker.internal:6380` to also test a natively running carpincho). Paste its output here when you run it. Expect Redis to be faster per core; the point of this project is correctness and clarity, not beating a decade of C tuning.
 
 ## Known limitations
 
