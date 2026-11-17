@@ -117,7 +117,7 @@ Package layout:
 | `internal/aof` | Append-only file: fsync policies, group commit, replay, rewrite |
 | `internal/server` | Listener, connection loop, command table and all commands, pub/sub, INFO |
 | `cmd/carpincho` | Flags, signals, graceful shutdown |
-| `docs/` | ADRs, issue drafts for the roadmap, study guide (Spanish) |
+| `docs/` | ADRs, issue drafts for the roadmap, a real `redis-cli` session transcript |
 
 ## Design decisions
 
@@ -270,7 +270,7 @@ Each item is a self-contained, ready-to-paste GitHub issue with acceptance crite
 
 ## About this project
 
-carpincho was built with AI assistance (Claude Code) as a scaffold for its author to take over. None of the roadmap items above is implemented yet. `docs/GUIA-MAX.md` (Spanish) is a study guide to the code, written for the author.
+carpincho was built with AI assistance (Claude Code) as a scaffold for its author to take over. None of the roadmap items above is implemented yet.
 
 ## License
 
