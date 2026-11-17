@@ -270,7 +270,7 @@ Each item is a self-contained, ready-to-paste GitHub issue with acceptance crite
 
 ## About this project
 
-carpincho was started with AI assistance as a scaffold and is being taken over by its author, who is building the roadmap features by hand. `docs/GUIA-MAX.md` (Spanish) is the author's own study guide to the code.
+carpincho was built with AI assistance (Claude Code) as a scaffold for its author to take over. None of the roadmap items above is implemented yet. `docs/GUIA-MAX.md` (Spanish) is a study guide to the code, written for the author.
 
 ## License
 
