@@ -252,8 +252,8 @@ The `-P 16` rows of that file and of the first `-network.tsv` come from 100 000-
 - No output-buffer limit for normal clients (only for subscribers).
 - `BGREWRITEAOF` pauses writers while it dumps (see ADR 0002).
 - `KEYS` and `DBSIZE` are not atomic snapshots under concurrent writes.
-- The race detector was not run on the author's Windows machine (it needs a C toolchain); the CI workflow runs it on Linux.
-- The `Dockerfile` has not been built yet (it needs `golang:1.26-alpine`, which was not pulled); the benchmarks use the same static binary cross-compiled with `CGO_ENABLED=0`.
+- The race detector cannot run on the author's Windows machine (it needs a C toolchain); CI runs `go test -race` on Linux on every push.
+- The `Dockerfile` is built by CI on every push and the image is smoke-tested with `PING`; it has not been run by hand on the author's machine. The benchmarks use the same static binary cross-compiled with `CGO_ENABLED=0`.
 
 ## Roadmap
 
